@@ -105,6 +105,7 @@ malloc(size_t size) {
 		// Our bitmasking solution cannot accommodate chunks this large.
 		// Bitmasks need to be able to shift over 8 bits to check against every
 		// position of a given byte.
+		// TODO -- perhaps use mmap here
 		errno = ENOTSUP;
 		return NULL;
 	}
