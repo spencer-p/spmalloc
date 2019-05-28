@@ -26,6 +26,7 @@ move_break(long int offs) {
 
 	if (cur_break == old_break) {
 		// If Linux did not move the break, we do not have new memory.
+		log("brk syscall failed");
 		errno = ENOMEM;
 		return NULL;
 	}

@@ -2,6 +2,13 @@
 
 #include <stdint.h>
 
+#ifdef DEBUG
+#include <stdio.h>
+#define log(msg, ...) fprintf(stderr, "spmalloc: "msg"\n", ##__VA_ARGS__)
+#else
+#define log(msg, ...)
+#endif
+
 // Returns a pointer to the current data break.
 void *get_break();
 

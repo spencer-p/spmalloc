@@ -3,7 +3,6 @@
 #include <errno.h>
 #include <stdint.h>
 #include <string.h>
-#include <stdio.h>
 
 #include "util.h"
 
@@ -22,6 +21,8 @@ struct blk_info {
 struct tag {
 	size_t size; // includes the tag size.
 };
+
+#define TAG(p) ((struct tag *)((uint8_t *) (p) - sizeof(struct tag)))
 
 // dhead stores the head of our linked list of data.
 static struct blk_info *dhead;
@@ -72,7 +73,7 @@ blk_release(struct blk_info *b, void *ptr) {
 	unsigned offset, bitoff, byteoff;
 	uint64_t mask;
 
-	chunk = (struct tag *)((uint8_t *) ptr - sizeof(struct tag));
+	chunk = TAG(ptr);
 	size = chunk->size;
 
 	// Calculate indices to the bit array.
@@ -107,6 +108,7 @@ malloc(size_t size) {
 		// Bitmasks need to be able to shift over 8 bits to check against every
 		// position of a given byte.
 		// TODO -- perhaps use mmap here
+		log("allocation size not supported (%ld bytes)", size);
 		errno = ENOTSUP;
 		return NULL;
 	}
@@ -146,10 +148,15 @@ malloc(size_t size) {
 
 void *
 realloc(void *ptr, size_t size) {
-	// TODO
-	(void) ptr;
-	(void) size;
-	return NULL;
+	// FIXME This is lazy.
+	size_t old_size = TAG(ptr)->size;
+	void *newptr = malloc(size);
+	if (newptr == NULL) {
+		return NULL;
+	}
+	memcpy(newptr, ptr, old_size);
+	free(ptr);
+	return newptr;
 }
 
 void
@@ -168,5 +175,6 @@ free(void *ptr) {
 	}
 
 	// Caller tried to release memory we do not know of.
+	log("attempt to free non-managed memory");
 	return;
 }
