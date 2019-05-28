@@ -1,8 +1,10 @@
 #include "spmalloc.h"
 
 #include <errno.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
+#include <sys/mman.h>
 
 #include "util.h"
 
@@ -19,7 +21,8 @@ struct blk_info {
 };
 
 struct tag {
-	size_t size; // includes the tag size.
+	uint8_t size; // includes the tag size.
+	bool mmap;
 };
 
 #define TAG(p) ((struct tag *)((uint8_t *) (p) - sizeof(struct tag)))
@@ -54,6 +57,7 @@ blk_find(struct blk_info *b, size_t size) {
 				// `off` * 4 bytes.
 				chunk = (struct tag *) ((uint8_t *)b + sizeof(struct blk_info) + TBL_SIZE + i*8*4 + off*4);
 				chunk->size = size;
+				chunk->mmap = false;
 				*((uint64_t *) (b->tbl+i)) &= ~shift_mask;
 				return (uint8_t*)chunk + sizeof(struct tag);
 			}
@@ -96,6 +100,26 @@ blk_release(struct blk_info *b, void *ptr) {
 }
 
 void *
+anon_alloc(size_t size) {
+	struct tag *ret;
+	size += sizeof(struct tag);
+	ret = mmap(NULL, size, PROT_READ|PROT_WRITE,
+			MAP_ANONYMOUS|MAP_PRIVATE, -1, 0);
+	if (ret == MAP_FAILED) {
+		return NULL;
+	}
+	ret->size = size;
+	ret->mmap = true;
+	return ((uint8_t*)ret) + sizeof(struct tag);
+}
+
+int
+anon_free(void *ptr) {
+	struct tag *chunk = TAG(ptr);
+	return munmap(chunk, chunk->size);
+}
+
+void *
 malloc(size_t size) {
 	struct blk_info *walk;
 	void *match;
@@ -107,10 +131,7 @@ malloc(size_t size) {
 		// Our bitmasking solution cannot accommodate chunks this large.
 		// Bitmasks need to be able to shift over 8 bits to check against every
 		// position of a given byte.
-		// TODO -- perhaps use mmap here
-		log("allocation size not supported (%ld bytes)", size);
-		errno = ENOTSUP;
-		return NULL;
+		return anon_alloc(size);
 	}
 
 	if (dhead == NULL) {
@@ -162,6 +183,11 @@ realloc(void *ptr, size_t size) {
 void
 free(void *ptr) {
 	struct blk_info *walk;
+
+	if (TAG(ptr)->mmap == true) {
+		(void) anon_free(ptr);
+		return;
+	}
 
 	// Walk over the blocks. If the ptr we are freeing is greater than the
 	// address to a given block, the ptr must be in that block.

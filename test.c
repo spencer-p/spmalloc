@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 
 #include "spmalloc.h"
 
@@ -15,5 +16,9 @@ int main() {
 
 	x = malloc(127);
 	if (!x) perror("malloc");
+	free(x);
+
+	x = malloc(0x800);
+	memset(x, 7, 256);
 	free(x);
 }
