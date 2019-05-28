@@ -48,7 +48,7 @@ blk_find(struct blk_info *b, size_t size) {
 	for (unsigned i = 0; i < TBL_SIZE; i++) {
 		shift_mask = mask;
 		for (unsigned off = 0; off < 8; off++) {
-			if ((*((uint64_t *) b->tbl+i) & shift_mask) == shift_mask) {
+			if ((*((uint64_t *) (b->tbl+i)) & shift_mask) == shift_mask) {
 				// Found a suitable chunk at the ith block of 4*8 bytes plus
 				// `off` * 4 bytes.
 				chunk = (struct tag *) ((uint8_t *)b + sizeof(struct blk_info) + TBL_SIZE + i*8*4 + off*4);
