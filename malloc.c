@@ -3,6 +3,7 @@
 #include <errno.h>
 #include <stdint.h>
 #include <string.h>
+#include <stdio.h>
 
 #include "util.h"
 
@@ -38,7 +39,7 @@ blk_find(struct blk_info *b, size_t size) {
 
 	// Size needs to include the tag, and be a factor of 4 bytes.
 	size += sizeof(struct tag);
-	size >>= 2;
+	size = (size >> 2) + ((size & 0x3) != 0);
 
 	// Construct a mask for the number of chunks we need
 	mask = bitmask(size);
